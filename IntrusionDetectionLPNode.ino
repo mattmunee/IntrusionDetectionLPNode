@@ -32,37 +32,32 @@ bool interruptCaught=false;
 void setup()
 {
 	Serial.begin(SERIAL_BAUD);
-	Serial.print("Start...");
+	Serial.println("Start...");
 	
-	delay(100);          // wait for serial xmit
-	pinMode(LED, OUTPUT);
-	digitalWrite(LED,LOW);
-	delay(1000);
-	digitalWrite(LED,HIGH);    // flash LED for 1 msec (still quite visible)
-	delay(1000);
-	digitalWrite(LED,LOW);
-	delay(1000);
-
 	led.Strobe(10,100);
 
 	radio.initialize(FREQUENCY,NODEID,NETWORKID);
 	radio.encrypt(ENCRYPTKEY);
 	radio.sleep(); // MOTEINO: sleep right away to save power
 
-	accelerometer.init();
-	//accelerometer.standby();
-	//accelerometer.setupAutoWakeSleep();
-	accelerometer.setupMotionDetection();
+	accelerometer.init(SCALE_2G, ODR_800);
+	accelerometer.setupMotionDetection(XY, 0.63, 1, INT_PIN2);
+	accelerometer.setupAutoSleep(ODR_SLEEP_1, LOW_POWER, 0x08, 5.0);
 	accelerometer.clearFFMotionInterrupt();
+
 	attachInterrupt(1,interrupt1Caught,FALLING);
 
 	led.Strobe(10,100);
 
-	
 }
 
 void loop() 
 {
+	Serial.print("Interrupt");
+	Serial.println(accelerometer.getInterruptSources());
+	if (accelerometer.getSystemMode() == 0)Serial.println("STANDBY");
+	else if (accelerometer.getSystemMode() == 1)Serial.println("WAKE");
+	else Serial.println("SLEEP");
 	if(interruptCaught){
 		interruptCaught=false;
 		numints++;
