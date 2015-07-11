@@ -34,20 +34,24 @@ void setup()
 	Serial.begin(SERIAL_BAUD);
 	Serial.println("Start...");
 	
-	led.Strobe(10,100);
+	//led.Strobe(10,100);
 
 	radio.initialize(FREQUENCY,NODEID,NETWORKID);
 	radio.encrypt(ENCRYPTKEY);
 	radio.sleep(); // MOTEINO: sleep right away to save power
 
 	accelerometer.init(SCALE_2G, ODR_800);
-	accelerometer.setupMotionDetection(XY, 0.63, 1, INT_PIN2);
-	accelerometer.setupAutoSleep(ODR_SLEEP_1, LOW_POWER, 0x08, 5.0);
+	accelerometer.setupMotionDetection(XY, 0.63, 0, INT_PIN2);
+	accelerometer.setupAutoSleep(ODR_SLEEP_50,NORMAL, 0x08, 5.0);
 	accelerometer.clearFFMotionInterrupt();
 
 	attachInterrupt(1,interrupt1Caught,FALLING);
+	cli();
+	PCICR |= 0x04;		//enable pin change interrupt 2 pins [23:16]
+	PCMSK2 |= 0x10;		//enable indiviual pins on PCI2, pin 20 = bit 4
+	sei();
 
-	led.Strobe(10,100);
+	//led.Strobe(10,100);
 
 }
 
@@ -59,14 +63,16 @@ void loop()
 	else if (accelerometer.getSystemMode() == 1)Serial.println("WAKE");
 	else Serial.println("SLEEP");
 	if(interruptCaught){
+		Serial.println("\t\t\t\t\tcaught!");
 		interruptCaught=false;
 		numints++;
-		Serial.println("\t\t\t\t\tcaught!");
 		delay(100);
 		accelerometer.clearFFMotionInterrupt();
 	}
 	Serial.println(numints);
+	delay(100);
 	if(accelerometer.available()){
+		Serial.print("Data Available");
 		accelerometer.read();
 		Serial.print("\t");
 		Serial.print(accelerometer.cx);
@@ -78,14 +84,13 @@ void loop()
 		Serial.println("\t None available");
 	}
 	delay(100);
-    /*led.Strobe(10,100);
-    LowPower.powerDown(SLEEP_8S, ADC_OFF, BOD_OFF);  
-    led.Strobe(10,100);
-    while(1)
-    {
-      LowPower.powerDown(SLEEP_8S, ADC_OFF, BOD_OFF);  
-    }*/
 }
+
 void interrupt1Caught(){
 	interruptCaught=true;
+}
+
+ISR(PCINT2_vect)
+{
+	interruptCaught = true;
 }
