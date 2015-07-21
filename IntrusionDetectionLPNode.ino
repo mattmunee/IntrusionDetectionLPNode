@@ -17,8 +17,12 @@ RFM69 radio;
 #define FREQUENCY     RF69_915MHZ
 #define ENCRYPTKEY    "sampleEncryptKey" //exactly the same 16 characters/bytes on all nodes!
 
+#define NUMMEAS		100
+
 typedef struct{
-	float accelMag2;
+	byte nodeID;
+	byte numMeas;
+	float accelMag2[NUMMEAS];
 }Payload;
 Payload payLoad;
 
@@ -27,66 +31,66 @@ MMA8452Q accelerometer;
 ArduinoLED led(LED);
 
 int numints=0;
-bool interruptCaught=false;
+bool interruptCaught = false;
 
 void setup()
 {
+	payLoad.nodeID = NODEID;
+	payLoad.numMeas = NUMMEAS;
 	Serial.begin(SERIAL_BAUD);
 	Serial.println("Start...");
 	
-	//led.Strobe(10,100);
+	led.Strobe(10,100);
 
+	// Setup radio
 	radio.initialize(FREQUENCY,NODEID,NETWORKID);
 	radio.encrypt(ENCRYPTKEY);
 	radio.sleep(); // MOTEINO: sleep right away to save power
 
-	accelerometer.init(SCALE_2G, ODR_800);
+	// Setup accelerometer
+	accelerometer.init(SCALE_2G, ODR_50);
 	accelerometer.setupMotionDetection(XY, 0.63, 0, INT_PIN2);
-	accelerometer.setupAutoSleep(ODR_SLEEP_50,NORMAL, 0x08, 5.0);
+	accelerometer.setupAutoSleep(ODR_SLEEP_1,LOW_POWER, 0x08, 5.0);
 	accelerometer.clearFFMotionInterrupt();
 
-	attachInterrupt(1,interrupt1Caught,FALLING);
+	// Setup Interrupts
+	// Use hardware interrupt 1 for motion interrupt (hardware 0 is tied to radio)
+	attachInterrupt(1,motionInterruptCaught,RISING);
+	// Use pin change interrupt to catch sleep/wake interrupt
 	cli();
-	PCICR |= 0x04;		//enable pin change interrupt 2 pins [23:16]
+	PCICR |= 0x04;		//enable pin change interrupt PCI2 pins [23:16]
 	PCMSK2 |= 0x10;		//enable indiviual pins on PCI2, pin 20 = bit 4
 	sei();
-
-	//led.Strobe(10,100);
 
 }
 
 void loop() 
 {
-	Serial.print("Interrupt");
-	Serial.println(accelerometer.getInterruptSources());
-	if (accelerometer.getSystemMode() == 0)Serial.println("STANDBY");
-	else if (accelerometer.getSystemMode() == 1)Serial.println("WAKE");
-	else Serial.println("SLEEP");
 	if(interruptCaught){
-		Serial.println("\t\t\t\t\tcaught!");
-		interruptCaught=false;
-		numints++;
+		byte numMeasurements = 0;
+		while (numMeasurements < NUMMEAS){
+			if (accelerometer.available()){
+				accelerometer.read();
+				payLoad.accelMag2[numMeasurements]=accelerometer.cx*accelerometer.cx
+					+ accelerometer.cy*accelerometer.cy
+					+ accelerometer.cz*accelerometer.cz;
+				numMeasurements++;
+			}
+		}
+		for (byte i = 0; i < NUMMEAS; i++){
+			Serial.print(payLoad.accelMag2[i]);
+			Serial.print(" ");
+		}
+		Serial.println("");
+		Serial.println("");
 		delay(100);
 		accelerometer.clearFFMotionInterrupt();
+		accelerometer.getSystemMode();
+		interruptCaught = false;
 	}
-	Serial.println(numints);
-	delay(100);
-	if(accelerometer.available()){
-		Serial.print("Data Available");
-		accelerometer.read();
-		Serial.print("\t");
-		Serial.print(accelerometer.cx);
-		Serial.print("\t");
-		Serial.print(accelerometer.cy);
-		Serial.print("\t");
-		Serial.println(accelerometer.cz);
-	}else{
-		Serial.println("\t None available");
-	}
-	delay(100);
 }
 
-void interrupt1Caught(){
+void motionInterruptCaught(){
 	interruptCaught=true;
 }
 
