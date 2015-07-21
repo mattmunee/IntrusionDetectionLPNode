@@ -64,14 +64,14 @@ void setup()
 
 }
 
-void loop() 
+void loop()
 {
-	if(interruptCaught){
+	if (interruptCaught){
 		byte numMeasurements = 0;
 		while (numMeasurements < NUMMEAS){
 			if (accelerometer.available()){
 				accelerometer.read();
-				payLoad.accelMag2[numMeasurements]=accelerometer.cx*accelerometer.cx
+				payLoad.accelMag2[numMeasurements] = accelerometer.cx*accelerometer.cx
 					+ accelerometer.cy*accelerometer.cy
 					+ accelerometer.cz*accelerometer.cz;
 				numMeasurements++;
@@ -88,6 +88,11 @@ void loop()
 		accelerometer.getSystemMode();
 		interruptCaught = false;
 	}
+	else{
+		LowPower.powerDown(SLEEP_8S, ADC_OFF, BOD_OFF);
+		radio.sleep();
+	}
+
 }
 
 void motionInterruptCaught(){
