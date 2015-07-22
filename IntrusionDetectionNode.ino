@@ -1,7 +1,7 @@
 #include <ArduinoLED.h>
 #include <SPI.h>
 #include <Wire.h>
-#include <SparkFun_MMA8452Q.h>
+#include <MMA8452Q.h>
 #include <RFM69.h>
 #include <LowPower.h>
 
